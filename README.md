@@ -1,1 +1,32 @@
-# streamlit-llm-app
+# 専門家に相談できる LLM アプリ
+
+Streamlit と LangChain を使った、専門家として振る舞う LLM に相談できる Web アプリです。
+
+## 機能
+
+- 入力フォームに入力したテキストを LangChain 経由で LLM (gpt-4o-mini) に送信し、回答を画面に表示します。
+- ラジオボタンで「健康・栄養の専門家」「旅行プランナー」「キャリアアドバイザー」を選ぶと、
+  選択に応じてシステムメッセージが切り替わり、その分野の専門家として LLM が回答します。
+
+## ローカルでの実行
+
+```bash
+python3.11 -m venv env
+source env/bin/activate
+pip install -r requirements.txt
+echo 'OPENAI_API_KEY=sk-...' > .env
+streamlit run app.py
+```
+
+## Streamlit Community Cloud へのデプロイ
+
+1. このリポジトリを GitHub に push します。
+2. Streamlit Community Cloud で「New app」→ 本リポジトリ / `main` / `app.py` を指定します。
+3. **Advanced settings** で Python version を **3.11** に設定します。
+4. Secrets に以下を設定します。
+
+   ```toml
+   OPENAI_API_KEY = "sk-..."
+   ```
+
+5. Deploy を押します。
