@@ -60,6 +60,10 @@ EXPERTS = {
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+# 直前に会話した専門家 (専門家が切り替わったら会話履歴をリセットするために使う)
+if "current_expert" not in st.session_state:
+    st.session_state.current_expert = None
+
 
 def build_history_messages() -> list:
     """会話履歴を LangChain のメッセージ (HumanMessage / AIMessage) のリストに変換する。"""
@@ -111,6 +115,7 @@ st.markdown(
 ラジオボタンで選んだ専門家として LLM が振る舞い、その分野の視点から回答します。
 専門分野以外の質問には回答せず、該当する専門家を選び直すよう案内します。
 会話履歴は画面に残り、LLM はこれまでのやり取りを踏まえて回答します。
+専門家を変更すると、会話履歴はリセットされて新しい相談が始まります。
 
 ### 操作方法
 1. 下のラジオボタンから、相談したい **専門家の種類** を選択します。
@@ -118,6 +123,7 @@ st.markdown(
 3. **「送信」ボタン** を押すと、LLM からの回答が画面に表示されます。
 4. 続けて質問すると、前のやり取りを踏まえた回答が返ってきます。
    会話をやり直したいときは **「会話履歴をクリア」** を押してください。
+5. 別の専門家を選んで送信すると、会話履歴はリセットされ、新しい相談として扱われます。
 """
 )
 
@@ -146,6 +152,18 @@ if submitted:
             "ローカルでは .env ファイルに、Streamlit Community Cloud では Secrets に設定してください。"
         )
     else:
+        # 前回と違う専門家が選ばれていたら、会話履歴をリセットして新しい相談にする
+        if (
+            st.session_state.current_expert is not None
+            and st.session_state.current_expert != selected_expert
+            and st.session_state.messages
+        ):
+            st.session_state.messages = []
+            st.info(
+                f"専門家を「{st.session_state.current_expert}」から「{selected_expert}」に変更したため、"
+                "会話履歴をリセットしました。"
+            )
+
         with st.spinner(f"{selected_expert}が回答を考えています..."):
             try:
                 answer = get_llm_response(input_text, selected_expert)
@@ -159,6 +177,7 @@ if submitted:
                 st.session_state.messages.append(
                     {"role": "assistant", "expert": selected_expert, "content": answer}
                 )
+                st.session_state.current_expert = selected_expert
 
 # ---------------------------------------------------------------------------
 # 会話履歴の表示
@@ -175,4 +194,5 @@ if st.session_state.messages:
 
     if st.button("会話履歴をクリア"):
         st.session_state.messages = []
+        st.session_state.current_expert = None
         st.rerun()
