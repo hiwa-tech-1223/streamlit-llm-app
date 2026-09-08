@@ -1,5 +1,8 @@
+import logging
 import os
+import traceback
 
+import openai
 import streamlit as st
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
@@ -74,6 +77,45 @@ def build_history_messages() -> list:
         else:
             history.append(AIMessage(content=message["content"]))
     return history
+
+
+# ---------------------------------------------------------------------------
+# エラーハンドリング
+# 標準出力に書いたログは Streamlit Community Cloud の「Manage app」パネルで確認できる
+# ---------------------------------------------------------------------------
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger("llm_app")
+
+
+def describe_error(error: Exception) -> str:
+    """例外の種類に応じて、利用者向けの分かりやすいメッセージを返す。"""
+    if isinstance(error, openai.AuthenticationError):
+        return (
+            "OpenAI の API キーが無効です。"
+            "ローカルでは .env、Streamlit Community Cloud では Settings → Secrets の "
+            "OPENAI_API_KEY を確認してください。"
+        )
+    if isinstance(error, openai.RateLimitError):
+        return (
+            "OpenAI の利用上限に達したか、残高が不足しています。"
+            "しばらく待ってから再度お試しいただくか、OpenAI の Billing 設定を確認してください。"
+        )
+    if isinstance(error, (openai.APIConnectionError, openai.APITimeoutError)):
+        return (
+            "OpenAI への接続に失敗したか、応答がタイムアウトしました。"
+            "ネットワーク状況を確認して、もう一度送信してください。"
+        )
+    if isinstance(error, openai.BadRequestError):
+        return (
+            "OpenAI へのリクエストが不正と判断されました。"
+            "入力が長すぎる場合は短くして再度お試しください。"
+        )
+    if isinstance(error, openai.InternalServerError):
+        return "OpenAI 側で一時的な障害が発生しています。少し時間をおいて再度お試しください。"
+    return "予期しないエラーが発生しました。時間をおいて再度お試しください。"
 
 
 def get_llm_response(input_text: str, expert_type: str) -> str:
@@ -176,7 +218,19 @@ if submitted:
             try:
                 answer = get_llm_response(input_text, selected_expert)
             except Exception as e:
-                st.error(f"回答の取得中にエラーが発生しました: {e}")
+                # ログにはスタックトレース付きで残し、画面には原因別の案内を出す
+                logger.exception(
+                    "LLM 呼び出しに失敗しました (expert=%s, input_length=%d)",
+                    selected_expert,
+                    len(input_text),
+                )
+                st.error(f"回答の取得中にエラーが発生しました。{describe_error(e)}")
+                with st.expander("エラーの詳細 (開発者向け)"):
+                    st.code(
+                        f"{type(e).__module__}.{type(e).__name__}: {e}\n\n"
+                        + traceback.format_exc(),
+                        language="text",
+                    )
             else:
                 # 回答が得られた場合のみ、質問と回答を会話履歴に追加する
                 st.session_state.messages.append(
