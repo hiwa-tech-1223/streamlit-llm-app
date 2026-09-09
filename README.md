@@ -2,6 +2,12 @@
 
 Streamlit と LangChain を使った、専門家として振る舞う LLM に相談できる Web アプリです。
 
+## デプロイ先
+
+https://llm-sample-app.streamlit.app/
+
+Streamlit Community Cloud で公開しています。ブラウザから上記 URL を開くとそのまま利用できます。
+
 ## 機能
 
 - 入力フォームに入力したテキストを LangChain 経由で LLM (gpt-4o-mini) に送信し、回答を画面に表示します。
